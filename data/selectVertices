@@ -1,0 +1,43 @@
+import bpy
+# UV data is accessible only in object mode
+prev_mode = bpy.context.object.mode
+bpy.ops.object.mode_set(mode='OBJECT')
+
+# Update vertex selection properties, in case the script wasn't run in
+# object mode_set
+bpy.context.object.update_from_editmode()
+
+# Active object assumed to be a mesh and already have a UV map
+mesh = bpy.context.object.data
+uv_map = mesh.uv_layers.active
+selected_loops = []
+selected_vertices = set()
+
+for index, uv_loop in enumerate(uv_map.data):
+    if(uv_loop.select):
+        selected_loops.append(index)
+
+for loop_index in selected_loops:
+    selected_vertices.add(mesh.loops[loop_index].vertex_index)
+
+for vertex_index in selected_vertices:
+    print(mesh.vertices[vertex_index].co)
+
+print('*' * 20)
+
+# Restore whatever mode the object is in previously
+bpy.ops.object.mode_set(mode=prev_mode)
+
+with open('G:\FaceReconstruction\Flame\DECA\data\leftEye.txt', 'w') as f:
+    for vertex_index in selected_vertices:
+        f.write('v {} {} {}\n'.format(mesh.vertices[vertex_index].co[0],mesh.vertices[vertex_index].co[1], mesh.vertices[vertex_index].co[2]))
+
+
+#mode = bpy.context.active_object.mode
+## we need to switch from Edit mode to Object mode so the selection gets updated
+#bpy.ops.object.mode_set(mode='OBJECT')
+#selectedVerts = [v for v in bpy.context.active_object.data.vertices if v.select]
+#for v in selectedVerts:
+#    print(v.co)
+## back to whatever mode we were in
+#bpy.ops.object.mode_set(mode=mode)

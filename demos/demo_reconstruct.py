@@ -20,12 +20,13 @@ from time import time
 from scipy.io import savemat
 import argparse
 from tqdm import tqdm
-
+import pickle
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from decalib.deca import DECA
 from decalib.datasets import datasets 
 from decalib.utils import util
 from decalib.utils.config import cfg as deca_cfg
+from decalib.utils.config import cfg
 
 def main(args):
     savefolder = args.savefolder
@@ -41,11 +42,19 @@ def main(args):
     # for i in range(len(testdata)):
     for i in tqdm(range(len(testdata))):
         name = testdata[i]['imagename']
+        name = name.split("\\")[-1]
         images = testdata[i]['image'].to(device)[None,...]
+        start_time = time()
+        os.makedirs(os.path.join(savefolder, name), exist_ok=True)
         codedict = deca.encode(images)
+        np.save(os.path.join(savefolder, name, name + '_parameters.npy'),codedict)
+        print(f'\nDuration: {time() - start_time:.0f} seconds')  # print the time elapsed
+        start_time = time()
         opdict, visdict = deca.decode(codedict) #tensor
+        print(f'\nDuration: {time() - start_time:.0f} seconds')  # print the time elapsed
+
         if args.saveDepth or args.saveKpt or args.saveObj or args.saveMat or args.saveImages:
-            os.makedirs(os.path.join(savefolder, name), exist_ok=True)
+            os.makedirs(os.path.join(savefolder, name), exist_ok=True   )
         # -- save results
         if args.saveDepth:
             depth_image = deca.render.render_depth(opdict['transformed_vertices']).repeat(1,3,1,1)
@@ -55,6 +64,8 @@ def main(args):
             np.savetxt(os.path.join(savefolder, name, name + '_kpt2d.txt'), opdict['landmarks2d'][0].cpu().numpy())
             np.savetxt(os.path.join(savefolder, name, name + '_kpt3d.txt'), opdict['landmarks3d'][0].cpu().numpy())
         if args.saveObj:
+            print(f"{name}")
+            print(os.path.join(savefolder, name, name + '.obj'))
             deca.save_obj(os.path.join(savefolder, name, name + '.obj'), opdict)
         if args.saveMat:
             opdict = util.dict_tensor2npy(opdict)

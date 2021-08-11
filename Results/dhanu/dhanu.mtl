@@ -1,0 +1,5 @@
+newmtl FaceTexture
+map_Kd dhanu.png
+disp Results\dhanu\dhanu_normals.png
+newmtl EyeTexture
+Ka 1.000000 1.000000 1.000000

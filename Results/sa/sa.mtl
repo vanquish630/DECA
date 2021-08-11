@@ -1,0 +1,3 @@
+newmtl FaceTexture
+map_Kd sa.png
+disp Results\sa\sa_normals.png

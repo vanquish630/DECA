@@ -70,6 +70,7 @@ class DECA(object):
         self.n_cond = model_cfg.n_exp + 3 # exp + jaw pose
         self.num_list = [model_cfg.n_shape, model_cfg.n_tex, model_cfg.n_exp, model_cfg.n_pose, model_cfg.n_cam, model_cfg.n_light]
         self.param_dict = {i:model_cfg.get('n_' + i) for i in model_cfg.param_list}
+        self.eye_face_indices = np.load(model_cfg.eye_face_indices_path).tolist()
 
         # encoders
         self.E_flame = ResnetEncoder(outsize=self.n_param).to(self.device) 
@@ -104,6 +105,7 @@ class DECA(object):
         start = 0
         for key in num_dict:
             end = start+int(num_dict[key])
+
             code_dict[key] = code[:, start:end]
             start = end
             if key == 'light':
@@ -160,24 +162,36 @@ class DECA(object):
     def decode(self, codedict):
         images = codedict['images']
         batch_size = images.shape[0]
-        
+        start_time = time()
         ## decode
         verts, landmarks2d, landmarks3d = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
+        print(f'\nDuration: {time() - start_time:.0f} seconds')  # print the time elapsed
+
+
         uv_z = self.D_detail(torch.cat([codedict['pose'][:,3:], codedict['exp'], codedict['detail']], dim=1))
         if self.cfg.model.use_tex:
             albedo = self.flametex(codedict['tex'])
         else:
-            albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
+            albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device)
+
+        np.save(os.path.join("Results", "IMG_0153_cropped", "IMG_0153_cropped" + '_albedo.npy'), albedo)
+
         ## projection
         landmarks2d = util.batch_orth_proj(landmarks2d, codedict['cam'])[:,:,:2]; landmarks2d[:,:,1:] = -landmarks2d[:,:,1:]; landmarks2d = landmarks2d*self.image_size/2 + self.image_size/2
         landmarks3d = util.batch_orth_proj(landmarks3d, codedict['cam']); landmarks3d[:,:,1:] = -landmarks3d[:,:,1:]; landmarks3d = landmarks3d*self.image_size/2 + self.image_size/2
         trans_verts = util.batch_orth_proj(verts, codedict['cam']); trans_verts[:,:,1:] = -trans_verts[:,:,1:]
-        
+        np.save(os.path.join("Results", "IMG_0153_cropped", "IMG_0153_cropped" + '_landmarks2d.npy'), landmarks2d)
+        np.save(os.path.join("Results", "IMG_0153_cropped", "IMG_0153_cropped" + '_landmarks3d.npy'), landmarks3d)
+        np.save(os.path.join("Results", "IMG_0153_cropped", "IMG_0153_cropped" + '_verts.npy'), trans_verts)
+
+        start_time = time()
+
         ## rendering
         ops = self.render(verts, trans_verts, albedo, codedict['light'])
         uv_detail_normals = self.displacement2normal(uv_z, verts, ops['normals'])
         uv_shading = self.render.add_SHlight(uv_detail_normals, codedict['light'])
         uv_texture = albedo*uv_shading
+        print(f'\nDuration: {time() - start_time:.0f} seconds')  # print the time elapsed
 
         landmarks3d_vis = self.visofp(ops['transformed_normals'])
         landmarks3d = torch.cat([landmarks3d, landmarks3d_vis], dim=2)
@@ -205,7 +219,7 @@ class DECA(object):
             'landmarks2d': landmarks2d,
             'landmarks3d': landmarks3d,
             'uv_detail_normals': uv_detail_normals,
-            'uv_texture_gt': uv_texture_gt,
+            'uv_texture_gt': uv_texture,
             'displacement_map': uv_z+self.fixed_uv_dis[None,None,:,:],
         }
         if self.cfg.model.use_tex:
@@ -251,14 +265,16 @@ class DECA(object):
                         texture=texture, 
                         uvcoords=uvcoords, 
                         uvfaces=uvfaces, 
-                        normal_map=normal_map)
+                        normal_map=normal_map,
+                       faceIndices = self.eye_face_indices
+                       )
         # upsample mesh, save detailed mesh
         texture = texture[:,:,[2,1,0]]
         normals = opdict['normals'][i].cpu().numpy()
         displacement_map = opdict['displacement_map'][i].cpu().numpy().squeeze()
         dense_vertices, dense_colors, dense_faces = util.upsample_mesh(vertices, normals, faces, displacement_map, texture, self.dense_template)
-        util.write_obj(filename.replace('.obj', '_detail.obj'), 
-                        dense_vertices, 
-                        dense_faces,
-                        colors = dense_colors,
-                        inverse_face_order=True)
+        # util.write_obj(filename.replace('.obj', '_detail.obj'),
+        #                 dense_vertices,
+        #                 dense_faces,
+        #                 colors = dense_colors,
+        #                 inverse_face_order=True)

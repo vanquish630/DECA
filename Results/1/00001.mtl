@@ -1,0 +1,6 @@
+newmtl FaceTexture
+map_Kd 00001.png
+disp Results\00001\00001_normals.png
+
+newmtl EyeTexture
+Ka 1.000000 1.000000 1.000000

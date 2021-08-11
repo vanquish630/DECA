@@ -68,6 +68,7 @@ def write_obj(obj_name,
               uvfaces=None,
               inverse_face_order=False,
               normal_map=None,
+              faceIndices = None,
               ):
     ''' Save 3D face model with texture. 
     Ref: https://github.com/patrikhuber/eos/blob/bd00155ebae4b1a13b08bf5a991694d682abbada/include/eos/core/Mesh.hpp
@@ -84,6 +85,10 @@ def write_obj(obj_name,
     mtl_name = obj_name.replace('.obj', '.mtl')
     texture_name = obj_name.replace('.obj', '.png')
     material_name = 'FaceTexture'
+    material_name_head = 'FaceTexture'
+    material_name_eye = 'EyeTexture'
+    eyeFaces = np.array(faceIndices)
+
 
     faces = faces.copy()
     # mesh lab start with 1, python/c++ start from 0
@@ -93,7 +98,10 @@ def write_obj(obj_name,
         if uvfaces is not None:
             uvfaces = uvfaces[:, [2, 1, 0]]
 
-    # write obj
+    print(faces.shape[0])
+    headFaces = [ele for ele in np.arange(faces.shape[0]) if ele not in eyeFaces]
+    print(f"params = {np.array(eyeFaces).shape} , {np.array(headFaces).shape}")
+  # write obj
     with open(obj_name, 'w') as f:
         # first line: write mtlib(material library)
         # f.write('# %s\n' % os.path.basename(obj_name))
@@ -101,26 +109,30 @@ def write_obj(obj_name,
         # f.write('\n')
         if texture is not None:
             f.write('mtllib %s\n\n' % os.path.basename(mtl_name))
-
+        f.write('o Head\n')
+        #Head
         # write vertices
         if colors is None:
-            for i in range(vertices.shape[0]):
+            for i in range(3931):
                 f.write('v {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2]))
         else:
-            for i in range(vertices.shape[0]):
+            for i in range(3931):
                 f.write('v {} {} {} {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2], colors[i, 0], colors[i, 1], colors[i, 2]))
 
         # write uv coords
         if texture is None:
-            for i in range(faces.shape[0]):
+            for i in range(7800):
                 f.write('f {} {} {}\n'.format(faces[i, 2], faces[i, 1], faces[i, 0]))
         else:
-            for i in range(uvcoords.shape[0]):
+            for i in range(3962):
                 f.write('vt {} {}\n'.format(uvcoords[i,0], uvcoords[i,1]))
-            f.write('usemtl %s\n' % material_name)
-            # write f: ver ind/ uv ind
+
+
+            f.write('usemtl %s\n' % material_name_head)
             uvfaces = uvfaces + 1
-            for i in range(faces.shape[0]):
+
+            # write f: ver ind/ uv ind
+            for i in headFaces:
                 f.write('f {}/{} {}/{} {}/{}\n'.format(
                     #  faces[i, 2], uvfaces[i, 2],
                     #  faces[i, 1], uvfaces[i, 1],
@@ -130,27 +142,118 @@ def write_obj(obj_name,
                     faces[i, 2], uvfaces[i, 2]
                 )
                 )
+
+        #Eyes
+        f.write('o Eyes\n')
+
+        # write vertices
+        if colors is None:
+            for i in range(3931,5023):
+                f.write('v {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2]))
+        else:
+            for i in range(3931,5023):
+                f.write('v {} {} {} {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2], colors[i, 0],
+                                                           colors[i, 1], colors[i, 2]))
+
+        # write uv coords
+        if texture is None:
+            for i in range(7800,9976):
+                f.write('f {} {} {}\n'.format(faces[i, 2], faces[i, 1], faces[i, 0]))
+        else:
+            for i in range(3962,5118):
+                f.write('vt {} {}\n'.format(uvcoords[i, 0], uvcoords[i, 1]))
+
+
+            f.write('usemtl %s\n' % material_name_eye)
+            # write f: ver ind/ uv ind
+            for i in eyeFaces:
+                f.write('f {}/{} {}/{} {}/{}\n'.format(
+                        #  faces[i, 2], uvfaces[i, 2],
+                        #  faces[i, 1], uvfaces[i, 1],
+                        #  faces[i, 0], uvfaces[i, 0]
+                    faces[i, 0], uvfaces[i, 0],
+                    faces[i, 1], uvfaces[i, 1],
+                    faces[i, 2], uvfaces[i, 2]
+                )
+                )
+
             # write mtl
             with open(mtl_name, 'w') as f:
-                f.write('newmtl %s\n' % material_name)
+                f.write('newmtl %s\n' % material_name_head)
                 s = 'map_Kd {}\n'.format(os.path.basename(texture_name)) # map to image
                 f.write(s)
 
                 if normal_map is not None:
                     name, _ = os.path.splitext(obj_name)
                     normal_name = f'{name}_normals.png'
-                    f.write(f'disp {normal_name}')
+                    f.write(f'disp {normal_name}\n')
                     # out_normal_map = normal_map / (np.linalg.norm(
                     #     normal_map, axis=-1, keepdims=True) + 1e-9)
                     # out_normal_map = (out_normal_map + 1) * 0.5
-
                     cv2.imwrite(
                         normal_name,
                         # (out_normal_map * 255).astype(np.uint8)[:, :, ::-1]
                         normal_map
                     )
+                f.write('newmtl %s\n' % material_name_eye)
+                f.write('Ka 1.000000 1.000000 1.000000\n')
             cv2.imwrite(texture_name, texture)
-
+    # with open(obj_name, 'w') as f:
+    #     # first line: write mtlib(material library)
+    #     # f.write('# %s\n' % os.path.basename(obj_name))
+    #     # f.write('#\n')
+    #     # f.write('\n')
+    #     if texture is not None:
+    #         f.write('mtllib %s\n\n' % os.path.basename(mtl_name))
+    #
+    #     # write vertices
+    #     if colors is None:
+    #         for i in range(vertices.shape[0]):
+    #             f.write('v {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2]))
+    #     else:
+    #         for i in range(vertices.shape[0]):
+    #             f.write('v {} {} {} {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2], colors[i, 0], colors[i, 1], colors[i, 2]))
+    #
+    #     # write uv coords
+    #     if texture is None:
+    #         for i in range(faces.shape[0]):
+    #             f.write('f {} {} {}\n'.format(faces[i, 2], faces[i, 1], faces[i, 0]))
+    #     else:
+    #         for i in range(uvcoords.shape[0]):
+    #             f.write('vt {} {}\n'.format(uvcoords[i,0], uvcoords[i,1]))
+    #         f.write('usemtl %s\n' % material_name)
+    #         # write f: ver ind/ uv ind
+    #         uvfaces = uvfaces + 1
+    #         for i in range(faces.shape[0]):
+    #             f.write('f {}/{} {}/{} {}/{}\n'.format(
+    #                 #  faces[i, 2], uvfaces[i, 2],
+    #                 #  faces[i, 1], uvfaces[i, 1],
+    #                 #  faces[i, 0], uvfaces[i, 0]
+    #                 faces[i, 0], uvfaces[i, 0],
+    #                 faces[i, 1], uvfaces[i, 1],
+    #                 faces[i, 2], uvfaces[i, 2]
+    #             )
+    #             )
+    #         # write mtl
+    #         with open(mtl_name, 'w') as f:
+    #             f.write('newmtl %s\n' % material_name)
+    #             s = 'map_Kd {}\n'.format(os.path.basename(texture_name)) # map to image
+    #             f.write(s)
+    #
+    #             if normal_map is not None:
+    #                 name, _ = os.path.splitext(obj_name)
+    #                 normal_name = f'{name}_normals.png'
+    #                 f.write(f'disp {normal_name}')
+    #                 # out_normal_map = normal_map / (np.linalg.norm(
+    #                 #     normal_map, axis=-1, keepdims=True) + 1e-9)
+    #                 # out_normal_map = (out_normal_map + 1) * 0.5
+    #
+    #                 cv2.imwrite(
+    #                     normal_name,
+    #                     # (out_normal_map * 255).astype(np.uint8)[:, :, ::-1]
+    #                     normal_map
+    #                 )
+    #         cv2.imwrite(texture_name, texture)
 # ---------------------------- process/generate vertices, normals, faces
 def generate_triangles(h, w, margin_x=2, margin_y=5, mask = None):
     # quad layout:
@@ -542,11 +645,11 @@ def plot_kpts(image, kpts, color = 'r'):
                 c = (0, 255, 0)
             else:
                 c = (0, 0, 255)
-        image = cv2.circle(image,(st[0], st[1]), 1, c, 2)  
+        image = cv2.circle(image,(int(st[0]),int( st[1])), 1, c, 2)
         if i in end_list:
             continue
         ed = kpts[i + 1, :2]
-        image = cv2.line(image, (st[0], st[1]), (ed[0], ed[1]), (255, 255, 255), 1)
+        image = cv2.line(image, (int(st[0]), int(st[1])), (int(ed[0]), int(ed[1])), (255, 255, 255), 1)
 
     return image
 

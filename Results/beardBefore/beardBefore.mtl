@@ -1,0 +1,5 @@
+newmtl FaceTexture
+map_Kd beardBefore.png
+disp Results\beardBefore\beardBefore_normals.png
+newmtl EyeTexture
+Ka 1.000000 1.000000 1.000000

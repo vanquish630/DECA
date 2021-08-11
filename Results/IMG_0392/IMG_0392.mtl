@@ -1,0 +1,5 @@
+newmtl FaceTexture
+map_Kd IMG_0392.png
+disp Results\IMG_0392\IMG_0392_normals.png
+newmtl EyeTexture
+Ka 1.000000 1.000000 1.000000

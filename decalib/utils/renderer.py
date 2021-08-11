@@ -84,7 +84,8 @@ class SRenderY(nn.Module):
         self.uv_size = uv_size
 
         verts, faces, aux = load_obj(obj_filename)
-        uvcoords = aux.verts_uvs[None, ...]      # (N, V, 2)
+        uvcoords = aux.verts_uvs[None, ...]
+        print(verts.shape)# (N, V, 2)
         uvfaces = faces.textures_idx[None, ...] # (N, F, 3)
         faces = faces.verts_idx[None,...]
 

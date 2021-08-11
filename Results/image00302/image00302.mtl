@@ -1,0 +1,3 @@
+newmtl FaceTexture
+map_Kd image00302.png
+disp Results\image00302\image00302_normals.png
